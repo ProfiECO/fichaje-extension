@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "types": ["chrome", "node", "vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "erasableSyntaxOnly": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src", "extension", "vite.config.ts", "tests"]
+}
