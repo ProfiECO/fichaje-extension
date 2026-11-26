@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --font-sans:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-soft: var(--soft);
+  --color-danger: var(--danger);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --canvas: #f6f8f7;
+    --surface: #fff;
+    --ink: #263735;
+    --muted: #74827e;
+    --line: #e4eae7;
+    --accent: #17765c;
+    --soft: #eaf4ee;
+    --danger: #ae3c37;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --canvas: #17211f;
+      --surface: #202a28;
+      --ink: #e2ebe6;
+      --muted: #99ada4;
+      --line: #34433d;
+      --accent: #7bcea9;
+      --soft: #293f35;
+      --danger: #f2a59e;
+    }
+  }
+  body {
+    @apply m-0 w-[400px] min-w-[360px] bg-canvas font-sans text-[13px] leading-normal text-ink antialiased;
+  }
+  button {
+    @apply cursor-pointer transition-colors disabled:cursor-default disabled:opacity-45;
+  }
+  button,
+  a,
+  input {
+    @apply outline-offset-4 focus-visible:outline-2 focus-visible:outline-accent;
+  }
+  svg {
+    @apply shrink-0;
+  }
+  label {
+    @apply mb-4 block text-[11px] font-medium;
+  }
+  input {
+    @apply mt-1.5 block w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-[13px] text-ink placeholder:text-muted/70;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3.5 py-3 font-semibold text-white hover:brightness-110 dark:bg-emerald-200 dark:text-emerald-950;
+  }
+  .btn-secondary {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[11px] font-semibold hover:bg-soft;
+  }
+  .btn-icon {
+    @apply grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-surface hover:bg-soft;
+  }
+  .eyebrow {
+    @apply text-[10px] font-semibold tracking-[.13em] text-muted uppercase;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+}
