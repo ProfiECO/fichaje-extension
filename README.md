@@ -1,17 +1,17 @@
 # Fichaje Frappe HR
 
-Extensión de Chrome Manifest V3 para registrar entradas y salidas en una instancia de Frappe HR. React, Tailwind CSS y Vite, sin servidor propio ni librería de estado adicional.
+Extensión de Chrome Manifest V3 para registrar entradas y salidas en una instancia de Frappe HR. React, TypeScript, Tailwind CSS y Vite, sin servidor propio ni librería de estado adicional.
 
 ## Funcionalidades
 
 - Entrada y salida con el estado del último fichaje y cronómetro de sesión.
 - Horas de hoy y resumen semanal en tiempo real mientras el popup está abierto.
 - Objetivos diarios y semanales configurables, guardados en este navegador.
-- Consulta de semanas anteriores e historial de entradas y salidas.
-- Exportación del resumen de la semana seleccionada a CSV, compatible con Excel.
+- Consulta de semanas anteriores, balance del objetivo y detalle de entradas y salidas por día.
+- Exportación del resumen de horas y del detalle de fichajes de la semana seleccionada a CSV, compatible con Excel.
 - Actualización manual y comprobación del estado antes de enviar un fichaje.
 - Geolocalización cuando la configuración de Frappe HR lo exige.
-- Tema claro u oscuro según el sistema y soporte de movimiento reducido.
+- Tema negro y gris, navegación fija y una sola zona de scroll accesible.
 
 Los objetivos son orientativos: no modifican horarios, descansos ni registros del servidor. Las pausas se registran como salida y posterior entrada.
 
@@ -23,8 +23,8 @@ Si cargaste esta misma carpeta siguiendo las instrucciones antiguas:
 2. Desde esta carpeta ejecuta:
 
    ```bash
-   npm ci
-   npm run check
+   pnpm install --frozen-lockfile
+   pnpm check
    ```
 
 3. Abre `chrome://extensions`, activa **Modo de desarrollador** y pulsa el botón **Recargar** de **Fichaje Frappe HR**.
@@ -36,11 +36,11 @@ Si tu versión instalada apunta a otra carpeta, actualiza el código y compila e
 
 ## Instalación nueva
 
-Requiere Node.js 22.12 o superior compatible con las dependencias instaladas y npm.
+Requiere Node.js 22.12 o superior compatible con las dependencias instaladas y pnpm 10.34.9 (fijado en `packageManager`).
 
 ```bash
-npm ci
-npm run check
+pnpm install --frozen-lockfile
+pnpm check
 ```
 
 En `chrome://extensions`, activa **Modo de desarrollador**, selecciona **Cargar extensión sin empaquetar** y elige la carpeta `dist/` de este proyecto. Abre la extensión, introduce el dominio de Frappe HR, tu usuario y contraseña, y acepta el permiso para ese dominio.
@@ -48,20 +48,19 @@ En `chrome://extensions`, activa **Modo de desarrollador**, selecciona **Cargar 
 ## Desarrollo
 
 ```bash
-npm run build:watch  # Recompila al guardar; recarga la extensión en Chrome
-npm test            # Cálculos, API, flujos de fichaje e interacción React
-npm run build       # Genera dist/ y el manifiesto de compatibilidad de la raíz
-npm run format      # Aplica el formato compartido
-npm run check       # Formato, pruebas y compilación de producción
+pnpm build:watch  # Recompila al guardar; recarga la extensión en Chrome
+pnpm test            # Vitest: cálculos, API, fichajes e interacción React
+pnpm build       # Genera dist/ y el manifiesto de compatibilidad de la raíz
+pnpm lint:fix      # Aplica formato, lint y organización de imports con Biome
+pnpm check       # Biome, tipos, pruebas y compilación de producción
 ```
 
-La extensión utiliza las API de Chrome: se prueba instalada en el navegador, sin un servidor de desarrollo. `dist/` es un artefacto generado y no se versiona. No contiene dependencias de desarrollo ni secretos de la cuenta.
+La extensión utiliza las API de Chrome: se prueba instalada en el navegador, sin un servidor de desarrollo. `dist/` es un artefacto generado y no se versiona. No contiene dependencias de desarrollo ni secretos de la cuenta. Vite genera el manifiesto de distribución y actualiza el de la raíz para mantener la instalación original.
 
 ## Estructura
 
 ```text
 extension/                Configuración del manifiesto de Chrome
-scripts/                  Compilación y compatibilidad de instalación
 src/
   app/                    Composición del popup y coordinación de estado
   features/
@@ -73,11 +72,11 @@ src/
     lib/                  Storage de Chrome, fechas y geolocalización
     ui/                   Iconos y componentes de progreso reutilizables
   styles.css              Tailwind, tokens de tema y estilos base
-  main.jsx                Punto de entrada de React
-tests/                    Pruebas con Node y DOM simulado
+  main.tsx                Punto de entrada de React
+tests/                    Pruebas con Vitest y DOM simulado
 ```
 
-Añade funcionalidades dentro de `features/`; lleva a `shared/` únicamente código reutilizado entre funcionalidades. `app/` las compone y coordina los flujos asíncronos. El manifiesto se define en `extension/manifest.js`; la versión se toma de `package.json` y se comparte con la UI. No hacen falta paquetes internos por ahora; la configuración de extensión ya está separada para extraerla si aparecen varias aplicaciones.
+Añade funcionalidades dentro de `features/`; lleva a `shared/` únicamente código reutilizado entre funcionalidades. `app/` las compone y coordina los flujos asíncronos. El manifiesto se define en `extension/manifest.ts`; la versión se toma de `package.json` y se comparte con la UI. No hacen falta paquetes internos por ahora; la configuración de extensión ya está separada para extraerla si aparecen varias aplicaciones.
 
 ## Sesión, precisión y errores
 
@@ -90,3 +89,11 @@ Añade funcionalidades dentro de `features/`; lleva a `shared/` únicamente cód
 - El reloj local se actualiza cada segundo. Los cambios realizados desde otros dispositivos se consultan al abrir, al pulsar Actualizar y antes de fichar.
 
 Las pruebas usan respuestas simuladas y no realizan fichajes reales. Tras instalar, comprueba la conexión, los datos y, cuando corresponda tu siguiente fichaje, el registro en tu instancia de Frappe HR. La validación contra un servidor real requiere una cuenta autorizada.
+
+## TypeScript, Biome y herramientas
+
+La aplicación y la configuración de extensión están en TypeScript con `strict` y `erasableSyntaxOnly`. El alias `@/` se define en `tsconfig.json`; Vite lo resuelve de forma nativa con `resolve.tsconfigPaths: true`. Vitest comparte la configuración de Vite. No hay scripts de compilación ni loaders de alias propios, y no se necesita el paquete `tsx`.
+
+Biome reemplaza a Prettier y configura comillas simples, ausencia de punto y coma y de comas finales. `pnpm lint:fix` también organiza imports; `pnpm typecheck` comprueba los tipos. `pnpm check` ejecuta ambos controles, las pruebas y la compilación. Las reglas del proyecto se documentan en `AGENTS.md`.
+
+Modern Web Guidance está instalado dentro del proyecto en `.agents/skills/modern-web-guidance/`. El repositorio que enlazaste es el de desarrollo; la skill publicada se distribuye desde [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance). Se han aplicado sus guías de tema oscuro, scrollbars y layout: un único contenedor desplazable, espacio estable para la barra, colores con contraste y fallback nativo. La skill se ejecuta durante el desarrollo; no se añade al bundle de la extensión.
