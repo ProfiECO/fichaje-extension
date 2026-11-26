@@ -10,3 +10,17 @@ export const getPreferences = async (): Promise<Preferences | undefined> =>
     .preferences
 export const savePreferences = (preferences: Preferences) =>
   chrome.storage.local.set({ preferences })
+
+// Temporary credentials survive popup teardown but remain in browser-session memory.
+export const getConnectionDraft = async (): Promise<
+  AccountConfig | undefined
+> =>
+  (
+    await chrome.storage.session.get<{ connectionDraft?: AccountConfig }>(
+      'connectionDraft'
+    )
+  ).connectionDraft
+export const saveConnectionDraft = (connectionDraft: AccountConfig) =>
+  chrome.storage.session.set({ connectionDraft })
+export const clearConnectionDraft = () =>
+  chrome.storage.session.remove('connectionDraft')

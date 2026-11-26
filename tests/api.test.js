@@ -206,3 +206,64 @@ test('required geolocation failure prevents sending a checkin', async () => {
     else delete globalThis.navigator
   }
 })
+
+test('reuses an existing matching session without posting credentials', async () => {
+  const { login } = await import('@/shared/api/frappe.ts')
+  const fetch = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (_, options) => {
+      assert.equal(options.credentials, 'include')
+      assert.equal(options.cache, 'no-store')
+      assert.notEqual(options.method, 'POST')
+      return response({ message: 'employee' })
+    })
+  await login('https://hr.example.com', 'employee', 'unused-password')
+  assert.equal(fetch.mock.calls.length, 1)
+})
+
+test('does not read attendance for a different browser account', async () => {
+  const { ensureAccount } = await import('@/shared/api/frappe.ts')
+  const fetch = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async () => response({ message: 'another-user' }))
+  await assert.rejects(ensureAccount(), /otra|another-user/)
+  assert.equal(fetch.mock.calls.length, 1)
+})
+
+test('logs in when the browser session has expired', async () => {
+  const { login } = await import('@/shared/api/frappe.ts')
+  let posts = 0
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, options) => {
+    if (url.endsWith('/frappe.auth.get_logged_user')) return response({}, 403)
+    assert.equal(options.method, 'POST')
+    posts++
+    return response({ message: 'Logged In' })
+  })
+  await login('https://hr.example.com', 'employee', 'test-only')
+  assert.equal(posts, 1)
+})
+
+test('a permission error with a valid session does not restart login', async () => {
+  let posts = 0
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, options) => {
+    if (options.method === 'POST') posts++
+    return url.endsWith('/frappe.auth.get_logged_user')
+      ? response({ message: 'employee' })
+      : response({ message: 'Not permitted' }, 403)
+  })
+  await assert.rejects(getCheckins('EMP-001', []), /Not permitted/)
+  assert.equal(posts, 0)
+})
+
+test('does not accept an incomplete two-factor login as a connected session', async () => {
+  const { login } = await import('@/shared/api/frappe.ts')
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
+    url.endsWith('/frappe.auth.get_logged_user')
+      ? response({ message: 'Guest' })
+      : response({ verification: { method: 'OTP' } })
+  )
+  await assert.rejects(
+    login('https://hr.example.com', 'employee', 'test-only'),
+    /completar el acceso/
+  )
+})

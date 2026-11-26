@@ -1,11 +1,17 @@
 import { type SubmitEvent, useState } from 'react'
+import type { AccountConfig } from '@/shared/types.ts'
 import Icon from '@/shared/ui/Icon.tsx'
 
 interface Props {
+  initialValues?: AccountConfig
   busy: boolean
   connect: (event: SubmitEvent<HTMLFormElement>) => void
 }
-export default function ConnectionForm({ busy, connect }: Props) {
+export default function ConnectionForm({
+  busy,
+  connect,
+  initialValues
+}: Props) {
   const [visible, setVisible] = useState(false)
   return (
     <section>
@@ -22,6 +28,7 @@ export default function ConnectionForm({ busy, connect }: Props) {
           Dominio de Frappe HR
           <input
             name='domain'
+            defaultValue={initialValues?.domain}
             type='url'
             placeholder='https://fichaje.tuempresa.com'
             autoComplete='url'
@@ -34,6 +41,7 @@ export default function ConnectionForm({ busy, connect }: Props) {
           Usuario
           <input
             name='usr'
+            defaultValue={initialValues?.usr}
             autoComplete='username'
             autoCapitalize='none'
             spellCheck={false}
@@ -48,6 +56,7 @@ export default function ConnectionForm({ busy, connect }: Props) {
             <input
               className='pe-11'
               name='pwd'
+              defaultValue={initialValues?.pwd}
               type={visible ? 'text' : 'password'}
               autoComplete='current-password'
               required

@@ -26,6 +26,7 @@ export async function request<T>(
     headers.set('Accept', 'application/json')
     res = await fetch(domain + path, {
       credentials: 'include',
+      cache: 'no-store',
       signal: AbortSignal.timeout(20000),
       ...options,
       headers
@@ -50,11 +51,54 @@ export async function request<T>(
     )
   return data as T
 }
-export const login = (domain: string, usr: string, pwd: string) =>
-  request(domain, '/api/method/login', {
-    method: 'POST',
-    body: new URLSearchParams({ usr, pwd })
-  })
+// Never start a second login while the browser already has the requested session.
+async function loggedUser(domain: string): Promise<string | null> {
+  try {
+    const { message } = await request<{ message?: string }>(
+      domain,
+      '/api/method/frappe.auth.get_logged_user'
+    )
+    return message && message !== 'Guest' ? message : null
+  } catch (error) {
+    if (
+      error instanceof HttpError &&
+      (error.status === 401 || error.status === 403)
+    )
+      return null
+    throw error
+  }
+}
+function sameUser(actual: string, expected: string) {
+  return actual.trim().toLowerCase() === expected.trim().toLowerCase()
+}
+export async function login(domain: string, usr: string, pwd: string) {
+  const current = await loggedUser(domain)
+  if (current) {
+    if (!sameUser(current, usr))
+      throw new Error(
+        `La web de Frappe tiene abierta la cuenta ${current}. Conecta esa misma cuenta en la extensión o cambia de cuenta en la web.`
+      )
+    return
+  }
+  const result = await request<{ message?: string }>(
+    domain,
+    '/api/method/login',
+    {
+      method: 'POST',
+      body: new URLSearchParams({ usr, pwd })
+    }
+  )
+  if (result.message !== 'Logged In' && result.message !== 'No App') {
+    throw new Error(
+      'Frappe requiere completar el acceso en la web (por ejemplo, verificación en dos pasos). Inicia sesión allí y vuelve a conectar la extensión.'
+    )
+  }
+}
+export async function ensureAccount() {
+  const config = await getConfig()
+  if (!config) throw new Error('Conecta tu cuenta para continuar.')
+  await login(config.domain, config.usr, config.pwd)
+}
 let renewing: Promise<unknown> | null = null
 export async function authed<T>(
   fn: (domain: string) => Promise<T>
@@ -69,6 +113,14 @@ export async function authed<T>(
       (err.status !== 401 && err.status !== 403)
     )
       throw err
+    const current = await loggedUser(config.domain)
+    if (current) {
+      if (!sameUser(current, config.usr))
+        throw new Error(
+          'La cuenta abierta en Frappe ha cambiado. Vuelve a conectar la extensión con la misma cuenta.'
+        )
+      throw err
+    }
     if (!renewing)
       renewing = login(config.domain, config.usr, config.pwd).finally(() => {
         renewing = null
@@ -80,6 +132,7 @@ export async function authed<T>(
 export async function csrfToken(domain: string) {
   const res = await fetch(`${domain}/hrms`, {
     credentials: 'include',
+    cache: 'no-store',
     signal: AbortSignal.timeout(20000)
   })
   if (!res.ok)

@@ -101,7 +101,11 @@ export default function App() {
             Preparando tu espacio…
           </div>
         ) : !config ? (
-          <ConnectionForm busy={busy} connect={app.connect} />
+          <ConnectionForm
+            busy={busy}
+            connect={app.connect}
+            initialValues={app.connectionDraft}
+          />
         ) : !data && tab !== 'settings' ? (
           <section className='empty-state'>
             <span className='mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-soft text-accent'>

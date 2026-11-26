@@ -1,10 +1,12 @@
 import * as api from '@/features/tracking/api.ts'
+import { ensureAccount } from '@/shared/api/frappe.ts'
 import { sameDay, weekStart } from '@/shared/lib/time.ts'
 import type { Dashboard } from '@/shared/types.ts'
 
 export async function loadDashboard(
   reference = new Date()
 ): Promise<Dashboard> {
+  await ensureAccount()
   const employee = await api.getEmployee()
   if (!employee?.name)
     throw new Error('Tu usuario no tiene un empleado activo en Frappe HR.')

@@ -12,7 +12,11 @@ import App from '@/app/App.tsx'
 import { toServer } from '@/shared/lib/time.ts'
 import type { AccountConfig, Preferences } from '@/shared/types.ts'
 
-type Store = { config?: AccountConfig; preferences?: Preferences }
+type Store = {
+  config?: AccountConfig
+  preferences?: Preferences
+  connectionDraft?: AccountConfig
+}
 type Options = {
   onLogin?: (url: string, fields: URLSearchParams) => void
   loginStatus?: number
@@ -29,6 +33,13 @@ function mount(
   vi.stubGlobal('chrome', {
     permissions: { request: async () => true },
     storage: {
+      session: {
+        get: async (key: keyof Store) => ({ [key]: saved[key] }),
+        set: async (values: Partial<Store>) => Object.assign(saved, values),
+        remove: async (key: keyof Store) => {
+          delete saved[key]
+        }
+      },
       local: {
         get: async (key: keyof Store) => ({ [key]: saved[key] }),
         set: async (values: Partial<Store>) => Object.assign(saved, values),
@@ -46,8 +57,14 @@ function mount(
     { name: 'in-1', log_type: 'IN', time: toServer(start) },
     { name: 'out-1', log_type: 'OUT', time: toServer(end) }
   ]
+  let sessionUser = initial.config?.usr || 'Guest'
   vi.stubGlobal('fetch', async (url: string, options?: RequestInit) => {
+    if (url.endsWith('/frappe.auth.get_logged_user'))
+      return new Response(JSON.stringify({ message: sessionUser }))
     if (url.endsWith('/api/method/login')) {
+      if (loginStatus === 200)
+        sessionUser =
+          new URLSearchParams(String(options?.body)).get('usr') || 'Guest'
       onLogin?.(url, new URLSearchParams(String(options?.body)))
       return new Response(
         JSON.stringify({
@@ -157,4 +174,33 @@ test('reveals the password without changing its value', async () => {
   assert.equal(field('Contraseña').value, 'synthetic-test-only')
   fireEvent.click(button('Ocultar contraseña'))
   assert.equal(field('Contraseña').type, 'password')
+})
+
+test('restores credentials after the permission prompt closes the popup and clears the draft on success', async () => {
+  const saved = mount()
+  await ready()
+  fillCredentials('a+B&= ñ 123')
+  vi.stubGlobal('chrome', {
+    ...chrome,
+    permissions: {
+      request: () => {
+        // The write has started before Chrome displays its external prompt.
+        assert.equal(saved.connectionDraft?.pwd, 'a+B&= ñ 123')
+        return new Promise<boolean>(() => {})
+      }
+    }
+  })
+  fireEvent.click(button('Conectar cuenta'))
+  await waitFor(() => assert.ok(saved.connectionDraft))
+  assert.equal(saved.config, undefined)
+  cleanup()
+  const reopened = mount(saved)
+  await ready()
+  assert.equal(field('Dominio de Frappe HR').value, 'https://hr.example.com')
+  assert.equal(field('Usuario').value, ' ana@example.com ')
+  assert.equal(field('Contraseña').value, 'a+B&= ñ 123')
+  assert.equal(field('Contraseña').type, 'password')
+  fireEvent.click(button('Conectar cuenta'))
+  await screen.findByText('Ana García')
+  assert.equal(reopened.connectionDraft, undefined)
 })

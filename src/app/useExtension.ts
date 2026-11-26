@@ -15,6 +15,9 @@ export function useExtension() {
   const [config, setConfig] = useState<AccountConfig | null | undefined>(
     undefined
   )
+  const [connectionDraft, setConnectionDraft] = useState<
+    AccountConfig | undefined
+  >(undefined)
   const [data, setData] = useState<Dashboard | null>(null)
   const [preferences, setPreferences] = useState(defaults)
   const [tab, setTab] = useState<Section>('today')
@@ -30,12 +33,14 @@ export function useExtension() {
     let alive = true
     ;(async () => {
       try {
-        const [stored, prefs] = await Promise.all([
+        const [stored, prefs, draft] = await Promise.all([
           storage.getConfig(),
-          storage.getPreferences()
+          storage.getPreferences(),
+          storage.getConnectionDraft()
         ])
         if (!alive) return
         setPreferences({ ...defaults, ...prefs })
+        setConnectionDraft(draft)
         setConfig(stored || null)
         if (stored) {
           const dashboard = await loadDashboard()
@@ -92,18 +97,27 @@ export function useExtension() {
         url.password
       )
         throw new Error('Introduce un dominio HTTP o HTTPS sin credenciales.')
-      if (!(await chrome.permissions.request({ origins: [`${url.origin}/*`] })))
+      const draft = {
+        domain: String(form.get('domain') ?? ''),
+        usr: String(form.get('usr') ?? ''),
+        pwd: String(form.get('pwd') ?? '')
+      }
+      const next = { ...draft, domain: url.origin, usr: draft.usr.trim() }
+      if (!next.usr) throw new Error('Introduce tu usuario.')
+      // Start the session-storage write before the prompt can destroy this popup.
+      // Invoke permissions.request synchronously in the submit gesture (no await before it).
+      const [, allowed] = await Promise.all([
+        storage.saveConnectionDraft(draft),
+        chrome.permissions.request({ origins: [`${url.origin}/*`] })
+      ])
+      if (!allowed)
         throw new Error(
           'Necesitamos permiso de acceso a tu dominio para conectar.'
         )
-      const next = {
-        domain: url.origin,
-        usr: String(form.get('usr') ?? '').trim(),
-        pwd: String(form.get('pwd') ?? '')
-      }
-      if (!next.usr) throw new Error('Introduce tu usuario.')
       await login(next.domain, next.usr, next.pwd)
       await storage.saveConfig(next)
+      await storage.clearConnectionDraft()
+      setConnectionDraft(undefined)
       setConfig(next)
       await sync(weekStart(new Date()))
     })
@@ -142,6 +156,8 @@ export function useExtension() {
   function disconnect() {
     return perform(async () => {
       await storage.clearConfig()
+      await storage.clearConnectionDraft()
+      setConnectionDraft(undefined)
       setConfig(null)
       setData(null)
       setTab('today')
@@ -150,6 +166,7 @@ export function useExtension() {
   }
   return {
     config,
+    connectionDraft,
     data,
     preferences,
     tab,

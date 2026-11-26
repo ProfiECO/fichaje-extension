@@ -97,3 +97,9 @@ La aplicación y la configuración de extensión están en TypeScript con `stric
 Biome reemplaza a Prettier y configura comillas simples, ausencia de punto y coma y de comas finales. `pnpm lint:fix` también organiza imports; `pnpm typecheck` comprueba los tipos. `pnpm check` ejecuta ambos controles, las pruebas y la compilación. Las reglas del proyecto se documentan en `AGENTS.md`.
 
 Modern Web Guidance está instalado dentro del proyecto en `.agents/skills/modern-web-guidance/`. El repositorio que enlazaste es el de desarrollo; la skill publicada se distribuye desde [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance). Se han aplicado sus guías de tema oscuro, scrollbars y layout: un único contenedor desplazable, espacio estable para la barra, colores con contraste y fallback nativo. La skill se ejecuta durante el desarrollo; no se añade al bundle de la extensión.
+
+## Sesión abierta en Frappe
+
+Antes de cargar los fichajes, la extensión consulta `frappe.auth.get_logged_user` sin caché. Si la cookie pertenece al usuario configurado, reutiliza esa sesión sin enviar otra vez la contraseña. Solo inicia sesión cuando el servidor indica Guest o una sesión caducada. Si la web tiene abierta otra cuenta, bloquea la carga para evitar mostrar o registrar fichajes de otro empleado. Usa el mismo identificador de usuario (normalmente el correo) en ambas aplicaciones.
+
+Los errores de permisos de una sesión válida no provocan otro login. Un acceso que requiere verificación en dos pasos debe completarse en la web; después la extensión puede reutilizar la sesión. Si una contraseña guardada deja de ser válida, habrá que actualizarla al volver a conectar cuando caduque la cookie.
